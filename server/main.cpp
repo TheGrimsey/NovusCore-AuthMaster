@@ -1,8 +1,9 @@
 #include <NovusTypes.h>
 #include "defines.h"
-#include <Utils\Message.h>
-#include <Utils\StringUtils.h>
-#include <asio\io_service.hpp>
+#include <Utils/Message.h>
+#include <Utils/StringUtils.h>
+#include <asio/io_service.hpp>
+#include <Networking/BaseServer.h>
 
 #include <future>
 
@@ -21,8 +22,9 @@ i32 main()
     EngineLoop engineLoop(30);
     engineLoop.Start();
 
-    asio::io_service io_service(2);
-
+    std::thread* runIoServiceThread;
+    asio::io_service ioService(2);
+    BaseServer baseServer(ioService, 3724);
 
     ConsoleCommandHandler consoleCommandHandler;
     std::future<std::string> future = std::async(std::launch::async, StringUtils::GetLineFromCin);
@@ -45,6 +47,12 @@ i32 main()
             }
             else if (message.code == MSG_OUT_SETUP_COMPLETE)
             {
+                baseServer.Start();
+
+                runIoServiceThread = new std::thread([&] 
+                {
+                    ioService.run();
+                });
             }
         }
 

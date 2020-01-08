@@ -23,6 +23,5 @@ void PacketHandlerSystem::Update(entt::registry& registry)
 
                 delete packet;
             }
-            
     });
 }

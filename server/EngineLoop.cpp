@@ -145,15 +145,26 @@ bool EngineLoop::Update()
                 else
                 {
                     entt::entity entity = _updateFramework.registry.create();
-
-                    u64 entityId = entt::to_integer(entity);
                     connectionComponent = &_updateFramework.registry.assign<ConnectionComponent>(entity);
                     connectionComponent->connection = std::make_shared<Connection>(*connection);
+
+                    u64 entityId = entt::to_integer(entity);
                     connection->SetIdentity(entityId);
                 }
 
                 NetPacket* netPacket = reinterpret_cast<NetPacket*>(message.objects[1]);
                 connectionComponent->packetQueue.enqueue(netPacket);
+            }
+            else if (message.code == MSG_IN_NET_DISCONNECT)
+            {
+                u64* identityPtr = reinterpret_cast<u64*>(message.objects[0]);
+                if (*identityPtr)
+                {
+                    entt::entity entity = static_cast<entt::entity>(*identityPtr);
+                    _updateFramework.registry.destroy(entity);
+                }
+
+                delete identityPtr;
             }
         }
     }
