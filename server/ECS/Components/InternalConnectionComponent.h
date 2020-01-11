@@ -4,9 +4,9 @@
 #include <Networking/Packet.h>
 #include <Utils/ConcurrentQueue.h>
 
-struct ConnectionComponent
+struct InternalConnectionComponent
 {
-    ConnectionComponent() : packetQueue(256) { }
+    InternalConnectionComponent() : packetQueue(256) { }
 
     std::shared_ptr<Connection> connection;
     moodycamel::ConcurrentQueue<Packet*> packetQueue;

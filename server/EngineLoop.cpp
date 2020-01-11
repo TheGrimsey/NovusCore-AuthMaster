@@ -5,6 +5,7 @@
 #include "Utils/ServiceLocator.h"
 #include <Networking/InputQueue.h>
 #include <Networking/Connection.h>
+#include "Networking/MessageHandler.h"
 #include <tracy/Tracy.hpp>
 
 // Component Singletons
@@ -12,10 +13,14 @@
 
 // Components
 #include "ECS/Components/ConnectionComponent.h"
+#include "ECS/Components/InternalConnectionComponent.h"
 
 // Systems
 #include "ECS/Systems/PacketHandlerSystem.h"
+#include "ECS/Systems/InternalPacketHandlerSystem.h"
 
+// Handlers
+#include "Networking/Handlers/Server/GeneralHandlers.h"
 
 EngineLoop::EngineLoop(f32 targetTickRate)
     : _isRunning(false), _inputQueue(256), _outputQueue(256)
@@ -66,6 +71,9 @@ void EngineLoop::Run()
     SetupUpdateFramework();
     _updateFramework.registry.create();
 
+    TimeSingleton& timeSingleton = _updateFramework.registry.set<TimeSingleton>();
+    timeSingleton.deltaTime = 1.0f;
+
     Message setupCompleteMessage;
     setupCompleteMessage.code = MSG_OUT_SETUP_COMPLETE;
     _outputQueue.enqueue(setupCompleteMessage);
@@ -76,6 +84,10 @@ void EngineLoop::Run()
     {
         f32 deltaTime = timer.GetDeltaTime();
         timer.Tick();
+
+        timeSingleton.lifeTimeInS = timer.GetLifeTime();
+        timeSingleton.lifeTimeInMS = timeSingleton.lifeTimeInS * 1000;
+        timeSingleton.deltaTime = deltaTime;
 
         if (!Update())
             break;
@@ -134,37 +146,58 @@ bool EngineLoop::Update()
             }
             else if (message.code == MSG_IN_NET_PACKET)
             {
-                Connection* connection = reinterpret_cast<Connection*>(message.objects[0]);
+                Packet* packet = reinterpret_cast<Packet*>(message.objects[0]);
                 ConnectionComponent* connectionComponent = nullptr;
 
-                if (connection->HasIdentity())
+                if (u64 identity = packet->connection->GetIdentity())
                 {
-                    entt::entity entity = static_cast<entt::entity>(connection->GetIdentity());
+                    entt::entity entity = static_cast<entt::entity>(identity);
                     connectionComponent = &_updateFramework.registry.get<ConnectionComponent>(entity);
                 }
                 else
                 {
                     entt::entity entity = _updateFramework.registry.create();
                     connectionComponent = &_updateFramework.registry.assign<ConnectionComponent>(entity);
-                    connectionComponent->connection = std::make_shared<Connection>(*connection);
+                    connectionComponent->connection = std::make_shared<Connection>(*packet->connection);
 
                     u64 entityId = entt::to_integer(entity);
-                    connection->SetIdentity(entityId);
+                    packet->connection->SetIdentity(entityId);
+                }
+;
+                connectionComponent->packetQueue.enqueue(packet);
+            }
+            else if (message.code == MSG_IN_INTERNAL_NET_PACKET)
+            {
+                Packet* packet = reinterpret_cast<Packet*>(message.objects[0]);
+                InternalConnectionComponent* internalConnectionComponent = nullptr;
+
+                if (u64 identity = packet->connection->GetIdentity())
+                {
+                    entt::entity entity = static_cast<entt::entity>(identity);
+                    internalConnectionComponent = &_updateFramework.registry.get<InternalConnectionComponent>(entity);
+                }
+                else
+                {
+                    entt::entity entity = _updateFramework.registry.create();
+                    internalConnectionComponent = &_updateFramework.registry.assign<InternalConnectionComponent>(entity);
+                    internalConnectionComponent->connection = std::make_shared<Connection>(*packet->connection);
+
+                    u64 entityId = entt::to_integer(entity);
+                    packet->connection->SetIdentity(entityId);
                 }
 
-                NetPacket* netPacket = reinterpret_cast<NetPacket*>(message.objects[1]);
-                connectionComponent->packetQueue.enqueue(netPacket);
+                internalConnectionComponent->packetQueue.enqueue(packet);
             }
             else if (message.code == MSG_IN_NET_DISCONNECT)
             {
-                u64* identityPtr = reinterpret_cast<u64*>(message.objects[0]);
-                if (*identityPtr)
+                u64 identity = *reinterpret_cast<u64*>(message.objects[0]);
+                if (identity)
                 {
-                    entt::entity entity = static_cast<entt::entity>(*identityPtr);
+                    entt::entity entity = static_cast<entt::entity>(identity);
                     _updateFramework.registry.destroy(entity);
                 }
 
-                delete identityPtr;
+                delete message.objects[0];
             }
         }
     }
@@ -179,16 +212,42 @@ void EngineLoop::SetupUpdateFramework()
     entt::registry& registry = _updateFramework.registry;
 
     ServiceLocator::SetMainRegistry(&registry);
-    ServiceLocator::SetMessageHandler(new MessageHandler());
+    SetupClientMessageHandler();
+    SetupServerMessageHandler();
+
+    // Temporary fix to allow taskflow to run multiple tasks at the same time when using Entt to construct views
+    registry.prepare<ConnectionComponent>();
+    registry.prepare<InternalConnectionComponent>();
 
     // PacketHandlerSystem
     tf::Task packetHandlerSystemTask = framework.emplace([&registry]()
     {
-        ZoneScopedNC("PacketHandlerSystem", tracy::Color::Orange2)
-            PacketHandlerSystem::Update(registry);
+        ZoneScopedNC("PacketHandlerSystem::Update", tracy::Color::Orange2)
+        PacketHandlerSystem::Update(registry);
+    });
+
+    // InternalPacketHandlerSystem
+    tf::Task internalPacketHandlerSystemTask = framework.emplace([&registry]()
+    {
+        ZoneScopedNC("InternalPacketHandlerSystem::Update", tracy::Color::Blue2)
+        InternalPacketHandlerSystem::Update(registry);
     });
 }
+void EngineLoop::SetupClientMessageHandler()
+{
+    auto messageHandler = new MessageHandler();
 
+
+
+    ServiceLocator::SetClientMessageHandler(messageHandler);
+}
+void EngineLoop::SetupServerMessageHandler()
+{
+    auto messageHandler = new MessageHandler();
+    ServiceLocator::SetInternalMessageHandler(messageHandler);
+
+    Server::GeneralHandlers::Setup(messageHandler);
+}
 void EngineLoop::UpdateSystems()
 {
     ZoneScopedNC("UpdateSystems", tracy::Color::Blue2)

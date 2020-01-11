@@ -24,7 +24,8 @@ i32 main()
 
     std::thread* runIoServiceThread;
     asio::io_service ioService(2);
-    BaseServer baseServer(ioService, 3724);
+    BaseServer baseServerInternal(ioService, 3725, true);
+    BaseServer baseServerPublic(ioService, 3724);
 
     ConsoleCommandHandler consoleCommandHandler;
     std::future<std::string> future = std::async(std::launch::async, StringUtils::GetLineFromCin);
@@ -47,7 +48,8 @@ i32 main()
             }
             else if (message.code == MSG_OUT_SETUP_COMPLETE)
             {
-                baseServer.Start();
+                baseServerInternal.Start();
+                baseServerPublic.Start();
 
                 runIoServiceThread = new std::thread([&] 
                 {

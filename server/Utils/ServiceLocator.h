@@ -22,27 +22,24 @@
     SOFTWARE.
 */
 #pragma once
+#include <NovusTypes.h>
 #include <entt.hpp>
-#include "../Networking/MessageHandler.h"
 
+class MessageHandler;
 class ServiceLocator
 {
 public:
     static entt::registry* GetMainRegistry() { return _mainRegistry; }
-    static void SetMainRegistry(entt::registry* registry)
-    {
-        assert(_mainRegistry == nullptr);
-        _mainRegistry = registry;
-    }
+    static void SetMainRegistry(entt::registry* registry);
 
-    static MessageHandler* GetMessageHandler() { return _messageHandler; }
-    static void SetMessageHandler(MessageHandler* messageHandler)
-    {
-        assert(_messageHandler == nullptr);
-        _messageHandler = messageHandler;
-    }
+    static MessageHandler* GetClientMessageHandler() { return _clientMessageHandler; }
+    static void SetClientMessageHandler(MessageHandler* clientMessageHandler);
+
+    static MessageHandler* GetInternalMessageHandler() { return _internalMessageHandler; }
+    static void SetInternalMessageHandler(MessageHandler* serverMessageHandler);
 
 private:
     static entt::registry* _mainRegistry;
-    static MessageHandler* _messageHandler;
+    static MessageHandler* _clientMessageHandler;
+    static MessageHandler* _internalMessageHandler;
 };

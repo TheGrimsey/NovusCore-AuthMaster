@@ -9,12 +9,12 @@ MessageHandler::MessageHandler()
     }
 }
 
-void MessageHandler::SetMessageHandler(Opcode opcode, MessageHandlerFunc func)
+void MessageHandler::SetMessageHandler(Opcode opcode, MessageHandlerFn func)
 {
     handlers[opcode] = func;
 }
 
-bool MessageHandler::CallHandler(NetPacket* packet, ConnectionComponent* connectionComponent)
+bool MessageHandler::CallHandler(Packet* packet)
 {
-    return handlers[packet->opcode] ? handlers[packet->opcode](packet, connectionComponent) : true;
+    return handlers[packet->header.opcode] ? handlers[packet->header.opcode](packet) : true;
 }

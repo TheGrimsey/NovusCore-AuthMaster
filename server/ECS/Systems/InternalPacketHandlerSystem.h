@@ -1,7 +1,7 @@
 #pragma once
 #include <entt.hpp>
 
-class PacketHandlerSystem
+class InternalPacketHandlerSystem
 {
 public:
     static void Update(entt::registry& registry); 

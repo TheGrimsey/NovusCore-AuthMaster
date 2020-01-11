@@ -6,16 +6,16 @@
 
 void PacketHandlerSystem::Update(entt::registry& registry)
 {
-    MessageHandler* messageHandler = ServiceLocator::GetMessageHandler();
+    MessageHandler* messageHandler = ServiceLocator::GetClientMessageHandler();
     auto view = registry.view<ConnectionComponent>();
     view.each([&registry, &messageHandler](const auto, ConnectionComponent& connectionComponent)
     {
             ZoneScopedNC("PacketHandlerSystem::Update", tracy::Color::Blue)
 
-                NetPacket* packet;
+                Packet* packet;
             while (connectionComponent.packetQueue.try_dequeue(packet))
             {
-                if (!messageHandler->CallHandler(packet, &connectionComponent))
+                if (!messageHandler->CallHandler(packet))
                 {
                     connectionComponent.packetQueue.enqueue(packet);
                     continue;

@@ -1,17 +1,17 @@
 #pragma once
 #include "Opcodes.h"
 
-struct NetPacket;
-struct ConnectionComponent;
-typedef bool (*MessageHandlerFunc)(NetPacket*, ConnectionComponent*);
+struct Packet;
 class MessageHandler
 {
+typedef bool (*MessageHandlerFn)(Packet*);
+
 public:
     MessageHandler();
 
-    void SetMessageHandler(Opcode opcode, MessageHandlerFunc func);
-    bool CallHandler(NetPacket* packet, ConnectionComponent* connectionComponent);
+    void SetMessageHandler(Opcode opcode, MessageHandlerFn func);
+    bool CallHandler(Packet* packet);
 
 private:
-    MessageHandlerFunc handlers[Opcode::OPCODE_MAX_COUNT];
+    MessageHandlerFn handlers[Opcode::OPCODE_MAX_COUNT];
 };

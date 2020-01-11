@@ -71,7 +71,8 @@ private:
     void UpdateSystems();
 
     void SetupUpdateFramework();
-
+    void SetupClientMessageHandler();
+    void SetupServerMessageHandler();
 private:
     bool _isRunning;
     f32 _targetTickRate;
