@@ -22,11 +22,6 @@ i32 main()
     EngineLoop engineLoop(30);
     engineLoop.Start();
 
-    std::thread* runIoServiceThread;
-    asio::io_service ioService(2);
-    BaseServer baseServerInternal(ioService, 3725, true);
-    BaseServer baseServerPublic(ioService, 3724);
-
     ConsoleCommandHandler consoleCommandHandler;
     std::future<std::string> future = std::async(std::launch::async, StringUtils::GetLineFromCin);
     while (true)
@@ -45,16 +40,6 @@ i32 main()
             {
                 NC_LOG_MESSAGE(*message.message);
                 delete message.message;
-            }
-            else if (message.code == MSG_OUT_SETUP_COMPLETE)
-            {
-                baseServerInternal.Start();
-                baseServerPublic.Start();
-
-                runIoServiceThread = new std::thread([&] 
-                {
-                    ioService.run();
-                });
             }
         }
 

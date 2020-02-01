@@ -74,9 +74,7 @@ void EngineLoop::Run()
     TimeSingleton& timeSingleton = _updateFramework.registry.set<TimeSingleton>();
     timeSingleton.deltaTime = 1.0f;
 
-    Message setupCompleteMessage;
-    setupCompleteMessage.code = MSG_OUT_SETUP_COMPLETE;
-    _outputQueue.enqueue(setupCompleteMessage);
+    // @TODO: Implement new network structure
 
     Timer timer;
     f32 targetDelta = 1.0f / _targetTickRate;
@@ -146,7 +144,7 @@ bool EngineLoop::Update()
             }
             else if (message.code == MSG_IN_NET_PACKET)
             {
-                Packet* packet = reinterpret_cast<Packet*>(message.objects[0]);
+                Packet* packet = reinterpret_cast<Packet*>(message.object);
                 ConnectionComponent* connectionComponent = nullptr;
 
                 if (u64 identity = packet->connection->GetIdentity())
@@ -168,7 +166,7 @@ bool EngineLoop::Update()
             }
             else if (message.code == MSG_IN_INTERNAL_NET_PACKET)
             {
-                Packet* packet = reinterpret_cast<Packet*>(message.objects[0]);
+                Packet* packet = reinterpret_cast<Packet*>(message.object);
                 InternalConnectionComponent* internalConnectionComponent = nullptr;
 
                 if (u64 identity = packet->connection->GetIdentity())
@@ -190,14 +188,14 @@ bool EngineLoop::Update()
             }
             else if (message.code == MSG_IN_NET_DISCONNECT)
             {
-                u64 identity = *reinterpret_cast<u64*>(message.objects[0]);
+                u64 identity = *reinterpret_cast<u64*>(message.object);
                 if (identity)
                 {
                     entt::entity entity = static_cast<entt::entity>(identity);
                     _updateFramework.registry.destroy(entity);
                 }
 
-                delete message.objects[0];
+                delete message.object;
             }
         }
     }
@@ -215,7 +213,7 @@ void EngineLoop::SetupUpdateFramework()
     SetupClientMessageHandler();
     SetupServerMessageHandler();
 
-    // Temporary fix to allow taskflow to run multiple tasks at the same time when using Entt to construct views
+    // @TODO: Temporary fix to allow taskflow to run multiple tasks at the same time when using Entt to construct views
     registry.prepare<ConnectionComponent>();
     registry.prepare<InternalConnectionComponent>();
 
